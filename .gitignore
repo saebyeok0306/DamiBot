@@ -1,0 +1,8 @@
+__pycache__/
+.env
+*.xlsx
+*.json
+wallet/
+instantclient_19_24/
+.venv/
+.idea/
