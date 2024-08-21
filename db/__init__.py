@@ -1,1 +1,1 @@
-from .Database import engine, init_db, SessionContext
+from .Database import init_db, SessionContext

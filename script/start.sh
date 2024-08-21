@@ -6,6 +6,6 @@ if screen -list | grep -q "\.dami"; then
   screen -S $SCREEN_SESSION -X quit
 fi
 
-source .venv/bin/activate
+. .venv/bin/activate
 pip install -r requirements.txt
-screen -dS $SCREEN_SESSION python app.py
+screen -dS $SCREEN_SESSION bash -c "source .venv/bin/activate && python app.py"

@@ -4,18 +4,20 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 import cx_Oracle
 
-cx_Oracle.init_oracle_client(lib_dir="db/instantclient_19_24")
 
 config = dotenv_values(".env")
-
-# oracle+cx_oracle://user:pass@hostname:port[/dbname][?service_name=<service>[&key=value&key=value...]]
-dsn = f"oracle+cx_oracle://{config['DAMIDB_USERNAME']}:{config['DAMIDB_PASSWORD']}@{config['TNS_ADMIN']}"
-engine = create_engine(dsn)
 Base = declarative_base()
+Session = None
 
-Session = sessionmaker(bind=engine)
+def init_db(test_flag: bool):
+    global Base, Session
 
-def init_db():
+    cx_Oracle.init_oracle_client(lib_dir="db/instantclient_19_24")
+    # oracle+cx_oracle://user:pass@hostname:port[/dbname][?service_name=<service>[&key=value&key=value...]]
+    dsn = f"oracle+cx_oracle://{config['DAMIDB_USERNAME']}:{config['DAMIDB_PASSWORD']}@{config['TNS_ADMIN']}"
+    engine = create_engine(dsn)
+    Session = sessionmaker(bind=engine)
+
     import db.model.Music
     import db.model.Record
     Base.metadata.create_all(engine)

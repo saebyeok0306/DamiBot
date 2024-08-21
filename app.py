@@ -72,7 +72,6 @@ def handle_signal(signal_number, frame):
     print("봇이 종료됩니다.")
     with SessionContext() as session:
         session.expire_all()
-    db.engine.dispose()
     sys.exit(0)
 
 
@@ -83,7 +82,7 @@ if __name__ == '__main__':
 
     discord_token = config['DISCORD_TOKEN']
 
-    db.init_db()
+    db.init_db(test_flag)
     utils.MusicDat()
 
     bot = DamiBot(test_flag)
