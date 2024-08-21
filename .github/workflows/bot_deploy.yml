@@ -53,5 +53,4 @@ jobs:
             cd ${{ secrets.APP_FOLDER_PATH }}
             unzip -o ${{ env.ZIP_NAME }}
             rm ${{ env.ZIP_NAME }}
-            pip install -r requirements.txt
             sh script/start.sh
