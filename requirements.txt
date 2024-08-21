@@ -5,3 +5,4 @@ sqlalchemy
 openpyxl
 cx_Oracle
 scikit-learn
+matplotlib

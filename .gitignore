@@ -6,3 +6,4 @@ wallet/
 instantclient_19_24/
 .venv/
 .idea/
+temp/

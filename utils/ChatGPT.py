@@ -1,8 +1,10 @@
+from typing import List
+
 import openai
 from dotenv import dotenv_values
 
 
-async def call_chatgpt(prompt: dict, model="gpt-4o-mini") -> dict:
+async def call_chatgpt(prompt: List[dict], model="gpt-4o-mini") -> dict:
 
     config = dotenv_values('.env')
     client = openai.OpenAI(api_key=config["OPENAI_SECRET"])

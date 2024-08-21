@@ -7,7 +7,7 @@ class Event(commands.Cog):
     def __init__(self, bot):
         print(f'{type(self).__name__}가 로드되었습니다.')
         self.bot = bot
-        self.core_list = ["Score"]
+        self.core_list = ["DJMAX"]
 
     @commands.Cog.listener()
     async def on_ready(self):

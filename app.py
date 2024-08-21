@@ -28,6 +28,7 @@ class DamiBot(commands.Bot):
         if test_flag is False:
             self.remove_command('help')
         self.test_flag = test_flag
+        self.bot_profile_url = "https://github.com/westreed/DamiBot/blob/main/docs/img/profile.png"
 
     @property
     def owner(self) -> discord.User:

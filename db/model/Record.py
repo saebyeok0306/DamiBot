@@ -1,17 +1,17 @@
-from sqlalchemy import String, Column, Integer
+from sqlalchemy import String, Column, Integer, ForeignKey
 
 from db.Database import Base
 
 
 class Record(Base):
-    __tablename__ = "RECORD"
+    __tablename__ = "DJMAX_RECORD"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer)
-    music_id = Column(Integer)
+    music_id = Column(Integer, ForeignKey("DJMAX_MUSIC.id"))
     level = Column(Integer)
     button = Column(Integer)
-    judge = Column(String(10))  # 99.10%
+    judge = Column(String(10))  # 99.10 '%'는 없음
     judge_detail = Column(String(200))  # 100%부터 Break까지 순차적으로 .으로 구분 ex. 999.6.0.0.0.0.0.0.0.0.0.0
     judge_text = Column(String(50))  # PERFECT, MAX COMBO, CLEAR
     score = Column(Integer)
