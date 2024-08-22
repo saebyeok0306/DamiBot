@@ -7,3 +7,5 @@ openpyxl
 cx_Oracle
 scikit-learn
 matplotlib
+pillow
+requests

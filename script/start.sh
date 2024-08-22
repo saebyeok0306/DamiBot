@@ -8,4 +8,4 @@ fi
 
 . .venv/bin/activate
 pip install -r requirements.txt
-screen -dS $SCREEN_SESSION bash -c "source .venv/bin/activate && python app.py"
+screen -S $SCREEN_SESSION bash -c "source .venv/bin/activate && python app.py"

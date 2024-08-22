@@ -1,3 +1,7 @@
+from collections import defaultdict
+
+from app import DamiBot
+
 
 def is_test_version():
     import sys
@@ -30,3 +34,12 @@ def diff_float(value1:float, value2:float):
         return f"{abs(diff):.2f}↓"
     else:
         return f"0＃"
+
+
+def get_topic_channel(bot: DamiBot, topic: str):
+    channels = defaultdict(list)
+    for guild in bot.guilds:
+        for channel in guild.text_channels:
+            if channel.topic is not None and topic in channel.topic:
+                channels[guild].append(channel)
+    return channels

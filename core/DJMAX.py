@@ -1,6 +1,5 @@
 import asyncio
 import math
-from typing import List
 
 import discord
 from discord import Message
@@ -10,9 +9,8 @@ from sqlalchemy import and_, desc, asc
 
 import utils
 from db import SessionContext
-from db.model.Music import Music
 from db.model.Record import Record
-from exception import AnalyzeError
+from exception import AnalyzeError, ImageError
 
 
 class DJMAX(commands.Cog):
@@ -31,7 +29,7 @@ class DJMAX(commands.Cog):
     @staticmethod
     def judgement_text(judge_dict: dict):
         if len(judge_dict.keys()) != 12:
-            raise AnalyzeError("AI가 판정을 잘못 표기했습니다.")
+            raise AnalyzeError("판정 데이터가 없습니다.")
 
         # 키 텍스트에 "100%"가 포함된 키를 제외한 나머지 키값들이 0인 경우
         if all([v == 0 for k, v in judge_dict.items() if "100%" not in k]):
@@ -51,7 +49,7 @@ class DJMAX(commands.Cog):
     def judgement_percent(user_score: int):
         percent = math.floor(user_score / 100) / 100
         if percent > 100:
-            raise AnalyzeError("AI가 점수를 잘못 표기했습니다.")
+            raise AnalyzeError("점수를 확인할 수 없습니다.")
 
         return f"{percent:.2f}"
 
@@ -60,7 +58,7 @@ class DJMAX(commands.Cog):
         # lv가 "NORMAL", "HARD", "MAXIMUM", "SC" 중 하나인 경우
         result = utils.get_music_level_index(level_text)
         if result is False:
-            raise AnalyzeError("AI가 난이도를 잘못 표기했습니다.")
+            raise AnalyzeError("난이도를 확인할 수 없습니다.")
         return result
 
     @staticmethod
@@ -70,14 +68,14 @@ class DJMAX(commands.Cog):
             if button in button_text:
                 return button
 
-        raise AnalyzeError("AI가 버튼을 잘못 표기했습니다.")
+        raise AnalyzeError("버튼 데이터를 확인할 수 없습니다.")
 
     @staticmethod
     def simplify_details(judge_detail: str):
         judge_list = list(map(lambda x: int(x), judge_detail.split(".")))
         return judge_list[0], sum(judge_list[1:11]), judge_list[11]
 
-    def reply_record(self, message: Message, title: str, description: str, music_title: str, record: Record, last_record: Record=None):
+    def reply_record(self, title: str, description: str, music_title: str, record: Record, last_record: Record=None):
         from datetime import datetime
         embed = discord.Embed(title=title, description=description, color=0x8d76bc)
         embed.set_thumbnail(url=f"https://devlog.run/res/dami/djmax/{record.music_id}.jpg")
@@ -136,9 +134,10 @@ class DJMAX(commands.Cog):
             # await self.기록(message, message.attachments[0])
 
     async def 기록(self, message: Message, result: discord.Attachment):
+        purifier_base64_image = utils.purifier(result.url)
         prompt = self.system_msg + [{
             "role": "user",
-            "content": [{"type": "image_url", "image_url": {"url": result.url}}]
+            "content": [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{purifier_base64_image}"}}]
         }]
         result = await utils.call_chatgpt(prompt)
 
@@ -151,8 +150,6 @@ class DJMAX(commands.Cog):
         try:
             result = result["response"].replace("```json", "").replace("```", "")
             json_result = json.loads(result)
-
-            print(json_result)
 
             user_id = message.author.id
             title, title_score = utils.most_similar_title(json_result.get("곡이름") or json_result.get("곡명") or json_result.get("곡 이름"))
@@ -184,7 +181,7 @@ class DJMAX(commands.Cog):
                         description = "이전에 이미 올리신 기록이에요."
 
                     if description is not None:
-                        await message.reply(embed=self.reply_record(message, "⚡ 이전 기록", description, title, last_record), mention_author=False)
+                        await message.reply(embed=self.reply_record("⚡ 이전 기록", description, title, last_record), mention_author=False)
                         return
 
                 record = Record(user_id=user_id, music_id=music.id, level=level, button=button, judge=judge,
@@ -192,9 +189,17 @@ class DJMAX(commands.Cog):
                 session.add(record)
                 session.commit()
 
-                await message.reply(embed=self.reply_record(message, "👑 신기록", None, title, record, last_record), mention_author=False)
+                await message.reply(embed=self.reply_record("👑 신기록", None, title, record, last_record), mention_author=False)
+
+        except AnalyzeError as e:
+            await message.reply(f"DJMAX RESPECT V의 결과화면을 업로드해야 합니다.", mention_author=False)
+            return
+        except ImageError as e:
+            await message.reply(f"이미지를 분석하는데 실패했습니다.\n{e}", mention_author=False)
+            return
 
         except Exception as e:
+            await utils.send_log(self.bot, f"DJMAX 기록 중 오류 발생\n{result.url}\n{e}")
             await message.reply(f"이미지를 분석하는데 실패했습니다.\n{e}", mention_author=False)
             return
 
@@ -230,9 +235,6 @@ class DJMAX(commands.Cog):
         if len(record_list) > 1:
             img_path = plot.single_user_plot()
             await ctx.send(file=discord.File(img_path))
-
-
-
 
 
 async def setup(bot):
