@@ -134,20 +134,21 @@ class DJMAX(commands.Cog):
             # await self.기록(message, message.attachments[0])
 
     async def 기록(self, message: Message, result: discord.Attachment):
-        purifier_base64_image = utils.purifier(result.url)
-        prompt = self.system_msg + [{
-            "role": "user",
-            "content": [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{purifier_base64_image}"}}]
-        }]
-        result = await utils.call_chatgpt(prompt)
-
-        if result["error"] is not False:
-            await message.reply("시간이 초과되었습니다. 다시 시도해주세요.", mention_author=False)
-            return
-
-        import json
-        from datetime import datetime, timezone, timedelta
         try:
+            purifier_base64_image = utils.purifier(result.url)
+            prompt = self.system_msg + [{
+                "role": "user",
+                "content": [{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{purifier_base64_image}"}}]
+            }]
+            result = await utils.call_chatgpt(prompt)
+
+            if result["error"] is not False:
+                await message.reply("시간이 초과되었습니다. 다시 시도해주세요.", mention_author=False)
+                return
+
+            import json
+            from datetime import datetime, timezone, timedelta
+
             result = result["response"].replace("```json", "").replace("```", "")
             json_result = json.loads(result)
 
@@ -228,10 +229,10 @@ class DJMAX(commands.Cog):
             return
 
         await ctx.reply(
-            embed=self.reply_record(ctx.message, "⚡ 이전 기록", None, music.music_name, record_list[0]),
+            embed=self.reply_record("⚡ 이전 기록", None, music.music_name, record_list[0]),
             mention_author=False
         )
-        plot = utils.ScorePlot(music, score_list=record_list)
+        plot = utils.ScorePlot(self.bot, music, score_list=record_list)
         if len(record_list) > 1:
             img_path = plot.single_user_plot()
             await ctx.send(file=discord.File(img_path))

@@ -3,17 +3,11 @@ from typing import List
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 
+from app import DamiBot
 from db.model.Music import Music
 from db.model.Record import Record
 
 import utils
-
-
-font_prop = fm.FontProperties(fname='utils/NanumGothic.ttf', size=12)
-plt.rcParams['font.family'] = font_prop.get_name()
-plt.figure(figsize=(4.5, 3))
-plt.tick_params(axis='x', direction='in', labelcolor='#e2e4e6')
-plt.tick_params(axis='y', direction='in', labelcolor='#e2e4e6')
 
 
 class ScorePlot:
@@ -21,11 +15,23 @@ class ScorePlot:
         'color': '#8d76bc',
         'size': 8
     }
+    init_flag = False
 
-    def __init__(self, music: Music, score_list: List[Record], other_score_list: List[Record]=None):
+    def __init__(self, bot: DamiBot, music: Music, score_list: List[Record], other_score_list: List[Record]=None):
         self.music = music
         self.score_list = score_list
         self.other_score_list = other_score_list  # 다른 유저와 비교하고자 할 때
+
+        if ScorePlot.init_flag is False:
+            ScorePlot.init_flag = True
+            font_path = 'utils/NanumGothic.ttf'
+            if not bot.test_flag:
+                font_path = "/usr/share/fonts/nanum/NanumGothic.ttf"
+            font_prop = fm.FontProperties(fname=font_path, size=12)
+            plt.rcParams['font.family'] = font_prop.get_name()
+            plt.figure(figsize=(4.5, 3))
+            plt.tick_params(axis='x', direction='in', labelcolor='#e2e4e6')
+            plt.tick_params(axis='y', direction='in', labelcolor='#e2e4e6')
 
     def single_user_plot(self):
         standard = self.score_list[0]
@@ -42,9 +48,10 @@ class ScorePlot:
         plt.ylabel('판정(%)', fontdict=ScorePlot.label_font, loc='top')
         plt.legend(frameon=False, labelcolor="#e2e4e6")
         plt.tight_layout()
-        plt.savefig(f'temp/{standard.user_id}.png', transparent=True)
+
+        plt.savefig(f'./temp/{standard.user_id}.png', transparent=True)
         plt.cla()
-        return f'temp/{standard.user_id}.png'
+        return f'./temp/{standard.user_id}.png'
 
     def multi_user_plot(self):
         standard = self.score_list[0]
