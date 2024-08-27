@@ -1,7 +1,7 @@
 from io import BytesIO
 
 from PIL.Image import Image as PImage
-from PIL import Image
+from PIL import Image, ImageEnhance
 import requests
 
 from exception import ImageError
@@ -25,6 +25,9 @@ def crop_image(image: PImage) -> PImage:
     judge_detail_image = image.crop((0, yaxis_grid[0], xaxis_grid[0], yaxis_grid[1]))
     score_image = image.crop((xaxis_grid[0], yaxis_grid[1], xaxis_grid[1], height))
 
+    enhancer = ImageEnhance.Sharpness(judge_detail_image)
+    judge_detail_image = enhancer.enhance(10.0)
+
     new_width = title_level_button_image.width
     new_height = title_level_button_image.height + judge_detail_image.height
 
@@ -32,6 +35,7 @@ def crop_image(image: PImage) -> PImage:
     new_image.paste(title_level_button_image, (0, 0))
     new_image.paste(judge_detail_image, (0, title_level_button_image.height))
     new_image.paste(score_image, (judge_detail_image.width, title_level_button_image.height))
+    # new_image.save("test.png")
     return new_image
 
 

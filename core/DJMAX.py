@@ -1,13 +1,14 @@
 import asyncio
 import math
+from typing import Literal
 
 import discord
-from discord import Message
+from discord import Message, app_commands, Interaction, User
 from discord.ext import commands
-from discord.ext.commands import Context
-from sqlalchemy import and_, desc, asc
+from sqlalchemy import and_, desc
 
 import utils
+from app import DamiBot
 from db import SessionContext
 from db.model.Record import Record
 from exception import AnalyzeError, ImageError
@@ -16,7 +17,7 @@ from exception import AnalyzeError, ImageError
 class DJMAX(commands.Cog):
     def __init__(self, bot):
         print(f'{type(self).__name__}가 로드되었습니다.')
-        self.bot = bot
+        self.bot: DamiBot = bot
 
         self.system_msg = []
         with open("system.message.json", "r", encoding="UTF-8") as f:
@@ -151,6 +152,7 @@ class DJMAX(commands.Cog):
 
             result = result["response"].replace("```json", "").replace("```", "")
             json_result = json.loads(result)
+            print(json_result)
 
             user_id = message.author.id
             title, title_score = utils.most_similar_title(json_result.get("곡이름") or json_result.get("곡명") or json_result.get("곡 이름"))
@@ -171,10 +173,14 @@ class DJMAX(commands.Cog):
             record_time = int(datetime.now(kst).timestamp())
 
             with SessionContext() as session:
-                last_record = session.query(Record).filter(
-                    and_(Record.user_id == user_id, Record.music_id == music.id, Record.level == level, Record.button == button)).order_by(desc(Record.id)).first()
+                last_records = session.query(Record).filter(and_(
+                    Record.user_id == user_id, Record.music_id == music.id, Record.level == level,
+                    Record.button == button)
+                ).order_by(desc(Record.id)).limit(4).all()
 
-                if last_record:
+                last_record = None
+                if last_records:
+                    last_record = last_records[0]
                     description = None
                     if last_record.score > user_score:
                         description = "아쉽게도 신기록이 아니네요.\n가장 높았던 이전 기록을 보여드릴게요."
@@ -190,52 +196,99 @@ class DJMAX(commands.Cog):
                 session.add(record)
                 session.commit()
 
+                last_records.insert(0, record)
+
                 await message.reply(embed=self.reply_record("👑 신기록", None, title, record, last_record), mention_author=False)
+                if len(last_records) > 1:
+                    plot = utils.ScorePlot(self.bot, music, score_list=last_records)
+                    img_path = plot.single_user_plot()
+                    await message.channel.send(file=discord.File(img_path))
 
         except AnalyzeError as e:
-            await message.reply(f"DJMAX RESPECT V의 결과화면을 업로드해야 합니다.", mention_author=False)
+            print(f"DJMAX RESPECT V의 결과화면을 업로드해야 합니다.\n{e}")
+            # await message.reply(f"DJMAX RESPECT V의 결과화면을 업로드해야 합니다.", mention_author=False)
             return
         except ImageError as e:
-            await message.reply(f"이미지를 분석하는데 실패했습니다.\n{e}", mention_author=False)
+            print(f"이미지를 분석하는데 실패했습니다.\n{e}")
+            # await message.reply(f"이미지를 분석하는데 실패했습니다.\n{e}", mention_author=False)
             return
 
         except Exception as e:
+            print(f"DJMAX 기록 중 오류 발생\n{result.url}\n{e}")
             await utils.send_log(self.bot, f"DJMAX 기록 중 오류 발생\n{result.url}\n{e}")
-            await message.reply(f"이미지를 분석하는데 실패했습니다.\n{e}", mention_author=False)
+            # await message.reply(f"이미지를 분석하는데 실패했습니다.\n{e}", mention_author=False)
             return
 
-    @commands.command(name="기록보기")
-    async def 기록보기(self, ctx: Context, *messages):
-        *music_name, button, level = messages
-        music_name = " ".join(music_name)
+    @app_commands.command(description='내 기록을 조회합니다. 유저를 지정하면 다른 유저의 기록을 볼 수 있어요.')
+    @app_commands.describe(title="곡이름", button="버튼수", level="난이도", user="다른 유저의 기록보기")
+    async def 기록보기(self, action: Interaction[DamiBot], title: str, button: Literal['4B', '5B', '6B', '8B'], level: Literal['NORMAL', 'HARD', 'MAXIMUM', 'SC'], user: User = None):
         button = utils.unify_music_button(button)
-        level = utils.get_music_level()[utils.unify_music_level(level)]
-        music_title, title_score = utils.most_similar_title(music_name)
+        level = utils.get_music_level()[level]
+        music_title, title_score = utils.most_similar_title(title)
         print(music_title)
         if title_score <= 0.1:
-            await ctx.reply(f"해당 곡은 데이터베이스에 없습니다.", mention_author=False)
+            await action.response.send_message("해당 곡은 데이터베이스에 없습니다.", ephemeral=True)
             return
 
-        music = await utils.get_music_from_title(self.bot, ctx.message, music_title)
+        await action.response.defer()
+        message = await action.followup.send("조회 중입니다...")
+        music = await utils.get_music_from_title(self.bot, action.message, music_title, action=action)
+
+        user_id = action.user.id if user is None else user.id
+        user_name = action.user.display_name if user is None else user.display_name
 
         record_list = []
         with SessionContext() as session:
             record_list = session.query(Record).filter(and_(
-                Record.user_id == ctx.author.id, Record.music_id == music.id, Record.level == level, Record.button == button)
-            ).order_by(asc(Record.id)).limit(5).all()
+                Record.user_id == user_id, Record.music_id == music.id, Record.level == level, Record.button == button)
+            ).order_by(desc(Record.id)).limit(5).all()
 
         if len(record_list) == 0:
-            await ctx.reply(f"해당 곡에 대한 기록이 없습니다.", mention_author=False)
+            await message.edit(content="해당 곡에 대한 기록이 없습니다.")
             return
 
-        await ctx.reply(
-            embed=self.reply_record("⚡ 이전 기록", None, music.music_name, record_list[0]),
-            mention_author=False
+        await message.edit(
+            content=None,
+            embed=self.reply_record("⚡ 기록 조회", f"{user_name}님의 기록입니다.", music.music_name, record_list[0]),
         )
-        plot = utils.ScorePlot(self.bot, music, score_list=record_list)
+
         if len(record_list) > 1:
+            plot = utils.ScorePlot(self.bot, music, score_list=record_list)
             img_path = plot.single_user_plot()
-            await ctx.send(file=discord.File(img_path))
+            await action.followup.send(file=discord.File(img_path))
+
+    # @commands.command(name="기록보기")
+    # async def 기록보기(self, ctx: Context, *messages):
+    #     *music_name, button, level = messages
+    #     music_name = " ".join(music_name)
+    #     button = utils.unify_music_button(button)
+    #     level = utils.get_music_level()[utils.unify_music_level(level)]
+    #     music_title, title_score = utils.most_similar_title(music_name)
+    #     print(music_title)
+    #     if title_score <= 0.1:
+    #         await ctx.reply(f"해당 곡은 데이터베이스에 없습니다.", mention_author=False)
+    #         return
+    #
+    #     music = await utils.get_music_from_title(self.bot, ctx.message, music_title)
+    #
+    #     record_list = []
+    #     with SessionContext() as session:
+    #         record_list = session.query(Record).filter(and_(
+    #             Record.user_id == ctx.author.id, Record.music_id == music.id, Record.level == level, Record.button == button)
+    #         ).order_by(asc(Record.id)).limit(5).all()
+    #
+    #     if len(record_list) == 0:
+    #         await ctx.reply(f"해당 곡에 대한 기록이 없습니다.", mention_author=False)
+    #         return
+    #
+    #     await ctx.reply(
+    #         embed=self.reply_record("⚡ 이전 기록", None, music.music_name, record_list[0]),
+    #         mention_author=False
+    #     )
+    #     plot = utils.ScorePlot(self.bot, music, score_list=record_list)
+    #     if len(record_list) > 1:
+    #         img_path = plot.single_user_plot()
+    #         await ctx.send(file=discord.File(img_path))
 
 
 async def setup(bot):

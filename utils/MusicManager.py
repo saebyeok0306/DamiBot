@@ -3,7 +3,7 @@ from typing import List
 
 import discord
 import openpyxl
-from discord import Message, Reaction, User
+from discord import Message, Reaction, User, Interaction
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -146,6 +146,7 @@ async def same_title_confirm(bot: DamiBot, message: Message, same_title: str, sa
 
     select_message = await message.reply(embed=embed, mention_author=True)
     select_len = len(same_title_list)
+
     for i in range(select_len):
         await select_message.add_reaction(sel_emoji[i])
 
@@ -163,14 +164,59 @@ async def same_title_confirm(bot: DamiBot, message: Message, same_title: str, sa
         await select_message.delete()
         raise TimeoutError("시간이 초과되었습니다.")
 
+    except Exception as e:
+        await select_message.delete()
+        print("무슨 오류? ", e)
 
-async def get_music_from_title(bot: DamiBot, message: Message, title_name: str) -> Music:
+
+async def same_title_confirm_action(bot: DamiBot, action: Interaction[DamiBot], same_title: str, same_title_list: List[Music]) -> Music:
+    sel_emoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    embed = discord.Embed(title=f"{same_title}의 DLC 선택 안내 ",
+                          description="DJMAX 내에 같은 이름의 곡이 있어서, 어떤 DLC인지 선택이 필요합니다.",
+                          color=0x8d76bc)
+    embed.set_thumbnail(url=action.user.display_avatar)
+    embed.set_footer(text=f"DJMAX RESPECT V｜기록 관리봇 담이",
+                     icon_url=bot.user.display_avatar)
+
+    for idx, title_data in enumerate(same_title_list):
+        embed.add_field(name=f"{idx + 1}번",
+                        value=f"{title_data.music_artist}\n{title_data.music_dlc}")
+
+    select_message = await action.followup.send(embed=embed, ephemeral=False)
+    select_len = len(same_title_list)
+
+    for i in range(select_len):
+        await select_message.add_reaction(sel_emoji[i])
+
+    try:
+        def check(emoji: Reaction, reaction_user: User):
+            return str(emoji) in sel_emoji and reaction_user == action.user and emoji.message.id == select_message.id
+        reaction, user = await bot.wait_for('reaction_add', timeout=60.0, check=check)
+
+        for i in range(select_len):
+            if str(reaction) == sel_emoji[i]:
+                await select_message.delete()
+                return same_title_list[i]
+
+    except asyncio.TimeoutError:
+        await select_message.delete()
+        raise TimeoutError("시간이 초과되었습니다.")
+
+    except Exception as e:
+        await select_message.delete()
+        print("무슨 오류? ", e)
+
+
+async def get_music_from_title(bot: DamiBot, message: Message, title_name: str, action: Interaction[DamiBot] = None) -> Music:
     is_same = False
     if is_same_title(title_name):
         is_same = True
     with SessionContext() as session:
         if is_same is True:
             same_title_list = session.query(Music).filter(Music.music_name == title_name).all()
-            return await same_title_confirm(bot, message, title_name, same_title_list)
+            if action is None:
+                return await same_title_confirm(bot, message, title_name, same_title_list)
+            else:
+                return await same_title_confirm_action(bot, action, title_name, same_title_list)
         else:
             return session.query(Music).filter(Music.music_name == title_name).first()
