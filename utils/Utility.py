@@ -1,3 +1,4 @@
+import math
 from collections import defaultdict
 
 from app import DamiBot
@@ -43,3 +44,14 @@ def get_topic_channel(bot: DamiBot, topic: str):
             if channel.topic is not None and topic in channel.topic:
                 channels[guild].append(channel)
     return channels
+
+
+def singleton(cls):
+    instances = {}
+
+    def get_instance(*args, **kwargs):
+        if cls not in instances:
+            instances[cls] = cls(*args, **kwargs)
+        return instances[cls]
+
+    return get_instance

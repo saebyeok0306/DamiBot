@@ -7,29 +7,35 @@ from discord import Message, Reaction, User, Interaction
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+import utils
 from app import DamiBot
 from db import SessionContext
 from db.model.Music import Music
 from exception import AnalyzeError
 
 
-class MusicDat:
-    ALL_MUSIC = None
+@utils.singleton
+class MusicManager:
 
     def __init__(self):
         self.wb = openpyxl.load_workbook("utils/djmax.xlsx")
         self.need_header = ["곡명", "BPM", "아티스트"]
+        self.all_music_doc = [music.toDocment() for music in self.get_all_music_data()]
+        self.search_engine = utils.SearchEngine(self.all_music_doc)
 
     def get_sheets(self):
         return list(map(lambda x: x.upper(), self.wb.sheetnames))
 
-    def get_all_music(self):
-        if MusicDat.ALL_MUSIC is None:
-            print("all music init")
-            with SessionContext() as session:
-                all_music = session.query(Music).all()
-                MusicDat.ALL_MUSIC = list(map(lambda x: x.music_name, all_music))
-        return MusicDat.ALL_MUSIC
+    @staticmethod
+    def get_all_music():
+        with SessionContext() as session:
+            all_music = session.query(Music).all()
+            return list(map(lambda x: x.music_name, all_music))
+
+    @staticmethod
+    def get_all_music_data():
+        with SessionContext() as session:
+            return session.query(Music).all()
 
     def init_db(self):
         # DB에 데이터를 넣을 때에만 사용
@@ -76,7 +82,7 @@ def most_similar_title(title: str) -> tuple:
     """실제 DB에 있는 음악 제목 중 가장 유사한 제목을 찾아 반환합니다."""
     if title is None:
         raise AnalyzeError("제목이 잘못 표기되었습니다.")
-    music_title_list = MusicDat().get_all_music()
+    music_title_list = MusicManager().get_all_music()
     for music_title in music_title_list:
         if title == music_title:
             return music_title, 1.0

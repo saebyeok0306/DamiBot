@@ -83,7 +83,7 @@ if __name__ == '__main__':
     discord_token = config['DISCORD_TOKEN']
 
     db.init_db(test_flag)
-    utils.MusicDat()
+    utils.MusicManager()
 
     bot = DamiBot(test_flag)
 

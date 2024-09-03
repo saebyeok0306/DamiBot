@@ -157,7 +157,10 @@ class DJMAX(commands.Cog):
             user_id = message.author.id
             title, title_score = utils.most_similar_title(json_result.get("곡이름") or json_result.get("곡명") or json_result.get("곡 이름"))
             if title_score <= 0.1:
-                raise AnalyzeError("제목이 잘못 표기되었습니다.")
+                print(f"아티스트 이름으로 재검색합니다. 아티스트 :{json_result.get('아티스트')}")
+                title, title_score = utils.most_similar_title(json_result.get("아티스트"))
+                if title_score <= 0.1:
+                    raise AnalyzeError("제목이 잘못 표기되었습니다.")
 
             music = await utils.get_music_from_title(self.bot, message, title)
 
@@ -227,8 +230,14 @@ class DJMAX(commands.Cog):
         music_title, title_score = utils.most_similar_title(title)
         print(music_title)
         if title_score <= 0.1:
-            await action.response.send_message("해당 곡은 데이터베이스에 없습니다.", ephemeral=True)
-            return
+            music_manager = utils.MusicManager()
+            result = music_manager.search_engine.search(title)
+            if len(result) == 0 or result[0][1] < 0.1:
+                await action.response.send_message("해당 곡은 데이터베이스에 없습니다.", ephemeral=True)
+                return
+            index, _ = result[0]
+            music = music_manager.all_music_doc[index]
+            music_title = music["music_name"]
 
         await action.response.defer()
         message = await action.followup.send("조회 중입니다...")
@@ -244,7 +253,7 @@ class DJMAX(commands.Cog):
             ).order_by(desc(Record.id)).limit(5).all()
 
         if len(record_list) == 0:
-            await message.edit(content="해당 곡에 대한 기록이 없습니다.")
+            await message.edit(content=f"{music_title} 곡에 대한 기록이 없습니다.")
             return
 
         await message.edit(
@@ -256,6 +265,38 @@ class DJMAX(commands.Cog):
             plot = utils.ScorePlot(self.bot, music, score_list=record_list)
             img_path = plot.single_user_plot()
             await action.followup.send(file=discord.File(img_path))
+
+    @app_commands.command(description='DJMAX RESPECT V의 수록곡을 검색합니다.')
+    @app_commands.describe(query="검색어")
+    async def 디맥검색(self, action: Interaction[DamiBot], query: str):
+        music_manager = utils.MusicManager()
+        try:
+            result = music_manager.search_engine.search(query)
+        except Exception as e:
+            await action.response.send_message(f"검색 엔진에 오류가 발생했습니다.\n{e}")
+            print(e)
+            return
+        return_list = []
+        for index, score in result:
+            if score < 0.1 or len(return_list) >= 10:
+                break
+            return_list.append((score, music_manager.all_music_doc[index]))
+
+        if len(return_list) == 0:
+            await action.response.send_message("검색 결과가 없습니다.")
+            return
+        try:
+            embed = discord.Embed(title=f"검색결과", description=f"검색어 : `{query}`", color=0x8d76bc)
+            embed.set_footer(text=f"DJMAX RESPECT V｜기록 관리봇 담이", icon_url=self.bot.user.display_avatar)
+            embed.set_thumbnail(url=f"https://devlog.run/res/dami/djmax/{return_list[0][1]['id']}.jpg")
+            for idx, music in enumerate(return_list):
+                score, data = music
+                embed.add_field(name=f"{idx+1}. {data['music_name']}", value=f"`Artist` {data['music_artist']}\n{data['music_dlc']} 수록됨.", inline=False)
+        except Exception as e:
+            await action.response.send_message(f"검색 결과를 표시하는데 실패했습니다.\n{e}")
+            return
+
+        await action.response.send_message(embed=embed)
 
     # @commands.command(name="기록보기")
     # async def 기록보기(self, ctx: Context, *messages):
