@@ -6,6 +6,7 @@ import openpyxl
 from discord import Message, Reaction, User, Interaction
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
+from sqlalchemy import and_
 
 import utils
 from app import DamiBot
@@ -22,6 +23,8 @@ class MusicManager:
         self.need_header = ["곡명", "BPM", "아티스트"]
         self.all_music_doc = [music.toDocment() for music in self.get_all_music_data()]
         self.search_engine = utils.SearchEngine(self.all_music_doc)
+
+        self.init_db()
 
     def get_sheets(self):
         return list(map(lambda x: x.upper(), self.wb.sheetnames))
@@ -43,15 +46,33 @@ class MusicManager:
             sheet = self.wb[sheetname]
             dlc_name = sheetname.upper()
             # 첫번째 행은 헤더데이터로 따로 가져옴
-            header = {i: h.value for i, h in enumerate(sheet[1]) if h.value in self.need_header}
+            header = {i: h.value for i, h in enumerate(sheet[1])}
             for row in sheet.iter_rows(min_row=2, max_row=sheet.max_row, values_only=True):
                 current_music = {v: row[k] for k, v in header.items()}
                 current_music["DLC"] = dlc_name
+
+                # 헤더에 `닉네임`이 없으면, DB에 직접 삽입했던 dlc이거나 닉네임이 없는 dlc
+                exists_nickname = True if current_music.get("닉네임") else False
+
                 with SessionContext() as session:
+                    first_music: Music = session.query(Music).filter(and_(
+                                Music.music_name == current_music["곡명"],
+                                Music.music_dlc == current_music["DLC"])).first()
+
                     music = Music(music_dlc=current_music["DLC"], music_name=current_music["곡명"],
-                                  music_artist=current_music["아티스트"], music_bpm=current_music["BPM"])
-                    session.add(music)
-                    session.commit()
+                                  music_artist=current_music["아티스트"], music_bpm=current_music["BPM"],
+                                  music_nickname=current_music.get("닉네임"))
+
+                    if first_music:
+                        if first_music.is_update(music) and exists_nickname:
+                            first_music.music_nickname = music.music_nickname
+                            session.commit()
+                            print(f"{dlc_name} {current_music['곡명']} 업데이트됨. ID:{first_music.ID}")
+
+                    else:
+                        session.add(music)
+                        session.commit()
+                        print(f"{dlc_name} {current_music['곡명']} 신곡 삽입됨. ID:{music.id}")
 
 
 def find_most_similar(text_list, target_text):
