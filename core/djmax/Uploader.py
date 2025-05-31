@@ -69,8 +69,16 @@ class Uploader(ReplyRecord):
 
         raise AnalyzeError("버튼 데이터를 확인할 수 없습니다.")
 
-    def exception_proccess(self, json_data: dict):
-        ...
+
+    def exception_proccess(self, title: str, artist: str):
+        check_exception = set([title, artist])
+        exception_case = [("L", "Ice")]
+
+        for case in exception_case:
+            if case[0] in check_exception and case[1] in check_exception:
+                return [True, case[0]]
+
+        return [False, None]
 
 
     async def 기록(self, message: Message, result: discord.Attachment):
@@ -95,9 +103,16 @@ class Uploader(ReplyRecord):
             print(json_result)
 
             user_id = message.author.id
-            title, title_score = utils.most_similar_title(
-                json_result.get("곡이름") or json_result.get("곡명") or json_result.get("곡 이름"))
+            temp_title = json_result.get("곡이름") or json_result.get("곡명") or json_result.get("곡 이름")
+            title, title_score = utils.most_similar_title(temp_title)
             print(f"search result: {title}:{title_score}")
+            
+            is_except, ex_title = self.exception_proccess(temp_title, json_result.get('아티스트'))
+            if is_except is True:
+                title = ex_title
+                title_score = 1.0
+                print(f"exception case: {title}:{title_score}")
+
             if title_score <= 0.1:
                 print(f"아티스트 이름으로 재검색합니다. 아티스트 :{json_result.get('아티스트')}")
                 title, title_score = utils.most_similar_title(json_result.get("아티스트"))
