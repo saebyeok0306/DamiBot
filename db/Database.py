@@ -20,6 +20,8 @@ def init_db(test_flag: bool):
 
     import db.model.Music
     import db.model.Record
+    import db.model.DLC
+    import db.model.SubLevel
     Base.metadata.create_all(engine)
 
 
@@ -31,4 +33,6 @@ class SessionContext:
         return self.session
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type:  # 예외 발생 시
+            self.session.rollback()  # 롤백 처리
         self.session.close()

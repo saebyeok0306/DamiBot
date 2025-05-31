@@ -27,7 +27,7 @@ class DamiBot(commands.Bot):
 
         if test_flag is False:
             self.remove_command('help')
-        self.test_flag = test_flag
+        DamiBot.test_flag = test_flag
         self.bot_profile_url = "https://github.com/westreed/DamiBot/blob/main/docs/img/profile.png"
 
     @property
@@ -42,13 +42,7 @@ class DamiBot(commands.Bot):
             self.owner_id = self.bot_app_info.owner.id
 
     async def on_ready(self) -> None:
-        if self.test_flag:
-            guild = self.get_guild(1267660875989520539)
-            print(f"테스트 모드로 실행됩니다.\n테스트서버 : {guild}")
-            self.tree.copy_global_to(guild=guild)
-            await self.tree.sync(guild=guild)
-        else:
-            await self.tree.sync()
+        ...
 
     async def start(self, token) -> None:
         return await super().start(token, reconnect=True)  # type: ignore
@@ -80,11 +74,12 @@ if __name__ == '__main__':
     test_flag = utils.is_test_version()
     config = dotenv_values(".env")
 
-    discord_token = config['DISCORD_TOKEN']
-
+    discord_token = config['DISCORD_TOKEN'] if test_flag is False else config['TEST_DISCORD_TOKEN']
+    print("Config Initialized")
     db.init_db(test_flag)
+    print("Database Initialized")
     utils.MusicManager()
-
+    print("MusicManager Initialized")
     bot = DamiBot(test_flag)
 
     signal.signal(signal.SIGINT, handle_signal)

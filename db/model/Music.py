@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import String, Column, Integer
+from sqlalchemy import String, Column, Integer, Sequence, LargeBinary
 
 from db.Database import Base
 
@@ -8,18 +8,20 @@ from db.Database import Base
 class Music(Base):
     __tablename__ = "DJMAX_MUSIC"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    music_name = Column(String(200))
-    music_artist = Column(String(100))
+    id = Column(Integer, Sequence('MUSIC_SEQ'), primary_key=True)
+    music_name = Column(String(400))
+    music_artist = Column(String(200))
     music_bpm = Column(String(50))
     music_dlc = Column(String(200))
     music_nickname = Column(String(200))
+    music_thumbnail = Column(LargeBinary)
 
-    def __init__(self, music_name, music_artist, music_bpm, music_dlc, music_nickname=None):
+    def __init__(self, music_name, music_artist, music_bpm, music_dlc, music_thumbnail, music_nickname=None):
         self.music_name = music_name
         self.music_artist = music_artist
         self.music_bpm = music_bpm
         self.music_dlc = music_dlc
+        self.music_thumbnail = music_thumbnail
         self.music_nickname = music_nickname
 
     def __str__(self):

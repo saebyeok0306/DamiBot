@@ -1,4 +1,4 @@
-from sqlalchemy import String, Column, Integer, ForeignKey
+from sqlalchemy import String, Column, Integer, ForeignKey, Sequence
 
 from db.Database import Base
 
@@ -6,7 +6,7 @@ from db.Database import Base
 class Record(Base):
     __tablename__ = "DJMAX_RECORD"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(Integer, Sequence('RECORD_SEQ'), primary_key=True)
     user_id = Column(Integer)
     music_id = Column(Integer, ForeignKey("DJMAX_MUSIC.id"))
     level = Column(Integer)

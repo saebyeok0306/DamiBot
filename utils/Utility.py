@@ -1,5 +1,7 @@
-import math
 from collections import defaultdict
+from functools import wraps
+
+from discord import Message, Member
 
 from app import DamiBot
 
@@ -45,13 +47,37 @@ def get_topic_channel(bot: DamiBot, topic: str):
                 channels[guild].append(channel)
     return channels
 
+def is_contain_topic_message(message: Message, topic: str):
+    if message.channel.topic is not None and topic in message.channel.topic:
+        return True
+    return False
+
 
 def singleton(cls):
     instances = {}
 
+    @wraps(cls)
     def get_instance(*args, **kwargs):
         if cls not in instances:
             instances[cls] = cls(*args, **kwargs)
         return instances[cls]
 
+    get_instance._instances = instances
+    get_instance._cls = cls  # 클래스 참조도 저장
+
     return get_instance
+
+def reset_singleton(singleton_func):
+    cls = singleton_func._cls
+    if cls in singleton_func._instances:
+        del singleton_func._instances[cls]
+
+def is_admin(member: Member):
+    if member.guild_permissions.administrator:
+        return True
+    return False
+
+def is_developer(member: Member):
+    if member.id == 383483844218585108:
+        return True
+    return False

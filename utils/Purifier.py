@@ -35,7 +35,7 @@ def crop_image(image: PImage) -> PImage:
     new_image.paste(title_level_button_image, (0, 0))
     new_image.paste(judge_detail_image, (0, title_level_button_image.height))
     new_image.paste(score_image, (judge_detail_image.width, title_level_button_image.height))
-    # new_image.save("test.png")
+    new_image.save("temp/crop.png")
     return new_image
 
 
@@ -59,3 +59,19 @@ def purifier(image_url: str) -> str:
         raise ImageError("이미지의 비율이 16:9가 아닙니다.")
 
     return convert_base64_image(crop_image(image))
+
+def convert_thumbnail(image_bytes: bytes) -> bytes:
+    image = Image.open(BytesIO(image_bytes))
+
+    # RGB로 변환 (JPG는 RGBA 지원 안 함)
+    image = image.convert("RGB")
+
+    # 80x80으로 리사이즈
+    image = image.resize((80, 80))
+
+    # 다시 바이트로 변환 (JPG로 저장)
+    output_buffer = BytesIO()
+    image.save(output_buffer, format="JPEG")
+    output_buffer.seek(0)
+    resized_bytes = output_buffer.read()
+    return resized_bytes

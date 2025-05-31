@@ -17,8 +17,16 @@ class Event(commands.Cog):
         print(self.bot.user.name)
         print(self.bot.user.id)
         print('==============================')
-
         await self.load_core()
+
+        if self.bot.test_flag:
+            guild = self.bot.get_guild(966942556078354502)
+            print(f"테스트 모드로 실행됩니다.\n테스트서버 : {guild}")
+            self.bot.tree.copy_global_to(guild=guild)
+            await self.bot.tree.sync(guild=guild)
+        else:
+            await self.bot.tree.sync()
+
 
     async def load_core(self):
         print("코어모듈을 로드합니다...")

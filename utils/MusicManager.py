@@ -19,12 +19,12 @@ from exception import AnalyzeError
 class MusicManager:
 
     def __init__(self):
-        self.wb = openpyxl.load_workbook("utils/djmax.xlsx")
-        self.need_header = ["곡명", "BPM", "아티스트"]
+        # self.wb = openpyxl.load_workbook("utils/djmax.xlsx")
+        # self.need_header = ["곡명", "BPM", "아티스트"]
         self.all_music_doc = [music.toDocment() for music in self.get_all_music_data()]
         self.search_engine = utils.SearchEngine(self.all_music_doc)
 
-        self.init_db()
+        # self.init_db()
 
     def get_sheets(self):
         return list(map(lambda x: x.upper(), self.wb.sheetnames))
@@ -95,6 +95,7 @@ def find_most_similar(text_list, target_text):
     return text_list[most_similar_index], similarity_matrix[0, most_similar_index]
 
 
+
 def contains_text(text_list, search_text):
     return search_text in text_list
 
@@ -134,13 +135,13 @@ def unify_music_button(button: str):
 def unify_music_level(level: str):
     level = level.lower()
     match level:
-        case "normal" | "nm" | "n":
+        case "normal" | "nm" | "n" | "0":
             return "NORMAL"
-        case "hard" | "hd" | "h":
+        case "hard" | "hd" | "h" | "1":
             return "HARD"
-        case "maximum" | "mx" | "m":
+        case "maximum" | "mx" | "m" | "2":
             return "MAXIMUM"
-        case "sc" | "s":
+        case "sc" | "s" | "3":
             return "SC"
     return level
 
