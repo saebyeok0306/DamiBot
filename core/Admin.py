@@ -127,7 +127,7 @@ class Admin(commands.Cog):
         if not utils.is_developer(action.user):
             return
 
-        if sub_level and sub_level.content_type != "text/plain":
+        if sub_level and "text/plain" not in sub_level.content_type:
             await action.response.send_message(f"❌ 세부난이도는 txt 파일로 업로드해야 합니다.\n> 버튼 별 난이도를 tab으로 구분하여 작성")
             return
 
@@ -135,7 +135,6 @@ class Admin(commands.Cog):
         try:
             content = raw_bytes.decode("utf-8")  # 또는 필요한 인코딩
             sub_level_list = content.split("\t")
-            print(content, sub_level_list)
         except UnicodeDecodeError:
             await action.response.send_message(f"❌ UTF-8 인코딩된 텍스트 파일만 지원됩니다.")
             return
@@ -143,12 +142,14 @@ class Admin(commands.Cog):
         with SessionContext() as session:
             music = session.query(Music).filter(and_(Music.music_name == title, Music.music_dlc == dlc)).first()
 
+            print(music)
+
             update = 0
             insert = 0
 
             for idx, sub_lv in enumerate(sub_level_list):
-                button = (idx // 4) * 10
-                level = utils.unify_music_level(str(idx % 4))
+                button = {0:4, 1:5, 2:6, 3:8}[(idx // 4)]
+                level = ((idx % 4)+1)*10
 
                 sub_detail = session.query(SubLevel).filter(and_(SubLevel.music_id == music.id, SubLevel.music_button == button, SubLevel.music_level == level)).first()
                 if sub_detail:
